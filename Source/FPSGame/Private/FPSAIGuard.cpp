@@ -4,6 +4,8 @@
 #include "FPSAIGuard.h"
 #include "Perception/PawnSensingComponent.h"
 #include "DrawDebugHelpers.h"
+#include "TimerManager.h"
+#include "FPSGameMode.h"
 
 // Sets default values
 AFPSAIGuard::AFPSAIGuard()
@@ -22,6 +24,7 @@ void AFPSAIGuard::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	OriginalRotation = GetActorRotation();
 }
 
 void AFPSAIGuard::OnPawnSeen(APawn* SeenPawn)
@@ -29,13 +32,53 @@ void AFPSAIGuard::OnPawnSeen(APawn* SeenPawn)
 	if (SeenPawn == nullptr) return;
 
 	DrawDebugSphere(GetWorld(), SeenPawn->GetActorLocation(), 32.0f, 12, FColor::Red, false, 10.0f);
+
+	AFPSGameMode* GM = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+
+	if (GM != nullptr)
+		GM->CompleteMission(SeenPawn, false);
+
+	SetGuardState(EAIState::Alerted);
 }
 
 void AFPSAIGuard::OnNoiseHeard(APawn* NoiseInstigator, const FVector& Location, float Volume)
 {
-	if (NoiseInstigator == nullptr) return;
+	if (GuardState == EAIState::Alerted) return;
 
-	DrawDebugSphere(GetWorld(), NoiseInstigator->GetActorLocation(), 32.0f, 12, FColor::Green, false, 10.0f);
+	DrawDebugSphere(GetWorld(), Location, 32.0f, 12, FColor::Green, false, 10.0f);
+
+	// Make guard look at noise position
+	FVector Direction = Location - GetActorLocation();
+	Direction.Normalize();
+
+	FRotator NewLookAt = FRotationMatrix::MakeFromX(Direction).Rotator();
+	NewLookAt.Pitch = 0.0f;
+	NewLookAt.Roll = 0.0f;
+
+	SetActorRotation(NewLookAt);
+
+	// Reset rotation after 3 seconds
+	GetWorldTimerManager().ClearTimer(TimerHandle_RestoreOrientation);
+	GetWorldTimerManager().SetTimer(TimerHandle_RestoreOrientation, this, &AFPSAIGuard::ResetOrientation, 3.0f);
+
+	SetGuardState(EAIState::Suspicious);
+}
+
+void AFPSAIGuard::ResetOrientation()
+{
+	if (GuardState == EAIState::Alerted) return;
+
+	SetActorRotation(OriginalRotation);
+	SetGuardState(EAIState::Idle);
+}
+
+void AFPSAIGuard::SetGuardState(EAIState NewState)
+{
+	if (GuardState == NewState) return;
+
+	GuardState = NewState;
+
+	OnStateChanged(NewState);
 }
 
 // Called every frame
