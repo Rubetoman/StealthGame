@@ -4,16 +4,49 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "UObject/Interface.h"
+#include "GuardState.h"
 #include "FPSAIGuard.generated.h"
 
 class UPawnSensingComponent;
 
-UENUM(BluePrintType)
-enum class EAIState : uint8
+class FPSGAME_API UIdleState : public IGuardState
 {
-	Idle,
-	Suspicious,
-	Alerted
+public:
+	UIdleState(AFPSAIGuard* Guard) : IGuardState(Guard) {};
+
+	void Tick(float DeltaTime) override;
+
+protected:
+	float Timer = 0.0f;
+};
+
+class FPSGAME_API UPatrolState : public IGuardState
+{
+public:
+	UPatrolState(AFPSAIGuard* Guard) : IGuardState(Guard) {};
+
+	void Tick(float DeltaTime) override;
+
+	FVector NextTarget;
+};
+
+class FPSGAME_API USuspiciousState : public IGuardState
+{
+public:
+	USuspiciousState(AFPSAIGuard* Guard) : IGuardState(Guard) {};
+
+	void Tick(float DeltaTime) override;
+
+	FVector Target;
+};
+
+class FPSGAME_API UAlertedState : public IGuardState
+{
+public:
+	UAlertedState(AFPSAIGuard* Guard) : IGuardState(Guard) {};
+
+	void Tick(float DeltaTime) override;
 };
 
 UCLASS()
@@ -38,15 +71,23 @@ protected:
 	UFUNCTION()
 	void ResetOrientation();
 
+	//UFUNCTION(BlueprintImplementableEvent, Category = "AI")
+	//void OnStateChanged(IGuardState* NewState);
+	//void OnStateChanged(EAIState NewState);
 
-	void SetGuardState(EAIState NewState);
-
-	UFUNCTION(BlueprintImplementableEvent, Category = "AI")
-	void OnStateChanged(EAIState NewState);
 
 public:	
+	void SetGuardState(IGuardState* NewState);
+
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
+
+	IGuardState* CurrentState = nullptr;
+
+	UIdleState* Idle = nullptr;
+	UPatrolState* Patrol = nullptr;
+	USuspiciousState* Suspicious = nullptr;
+	UAlertedState* Alerted = nullptr;
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -54,6 +95,4 @@ protected:
 
 	FRotator OriginalRotation;
 	FTimerHandle TimerHandle_RestoreOrientation;
-
-	EAIState GuardState = EAIState::Idle;
 };
