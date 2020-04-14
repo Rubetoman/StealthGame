@@ -107,7 +107,7 @@ void AFPSAIGuard::OnIdleEnter()
 	// Start patrolling after 3 seconds
 	FTimerHandle TimerHandle_StartPatrolling;
 	FTimerDelegate PatrolDelegate = FTimerDelegate::CreateUObject(this, &AFPSAIGuard::SetGuardState, EAIState::Patrolling);
-	GetWorldTimerManager().SetTimer(TimerHandle_StartPatrolling, PatrolDelegate, 1.0f, false);
+	GetWorldTimerManager().SetTimer(TimerHandle_StartPatrolling, PatrolDelegate, IdleDuration, false);
 }
 
 void AFPSAIGuard::OnPatrolEnter()
@@ -194,7 +194,7 @@ void AFPSAIGuard::AlertedTick(float DeltaTime)
 		if (GM != nullptr)
 			GM->CompleteMission(FollowingPawn, false);
 	}
-	else if (Distance > 2000)
+	else if (Distance > DesistDistance)
 	{
 		// Pawn has escaped, return to patrol
 		SetGuardState(EAIState::Patrolling);

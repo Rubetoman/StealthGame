@@ -87,6 +87,10 @@ protected:
 	UPROPERTY(EditInstanceOnly, Category = "AI")
 	TArray<ATargetPoint*> TargetPoints;
 
+	// Idle variables
+	UPROPERTY(EditInstanceOnly, Category = "AI")
+	float IdleDuration = 3.0f;
+
 	// Patrol variables
 	ATargetPoint* CurrentTarget = nullptr;
 	int32 CurrentIndex = 0;
@@ -97,4 +101,6 @@ protected:
 
 	// Alerted variables
 	APawn* FollowingPawn = nullptr;
+	UPROPERTY(EditInstanceOnly, Category = "AI")
+	float DesistDistance = 2000.0f;
 };
