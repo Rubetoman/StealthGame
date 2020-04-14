@@ -7,7 +7,6 @@
 #include "TimerManager.h"
 #include "FPSGameMode.h"
 #include "Engine/TargetPoint.h"
-#include "Transform.h"
 #include "Blueprint/AIBlueprintHelperLibrary.h"
 
 // Sets default values
