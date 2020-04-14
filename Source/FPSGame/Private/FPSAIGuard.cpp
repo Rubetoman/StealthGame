@@ -46,8 +46,6 @@ void AFPSAIGuard::OnNoiseHeard(APawn* NoiseInstigator, const FVector& Location, 
 {
 	if (GuardState == EAIState::Alerted) return;
 
-	DrawDebugSphere(GetWorld(), Location, 32.0f, 12, FColor::Green, false, 10.0f);
-
 	// Make guard look at noise position
 	FVector Direction = Location - GetActorLocation();
 	Direction.Normalize();
@@ -58,9 +56,11 @@ void AFPSAIGuard::OnNoiseHeard(APawn* NoiseInstigator, const FVector& Location, 
 
 	SetActorRotation(NewLookAt);
 
+	NoiseLocation = Location;
+
 	// Reset rotation after 3 seconds
-	GetWorldTimerManager().ClearTimer(TimerHandle_RestoreOrientation);
-	GetWorldTimerManager().SetTimer(TimerHandle_RestoreOrientation, this, &AFPSAIGuard::ResetOrientation, 3.0f);
+	//GetWorldTimerManager().ClearTimer(TimerHandle_RestoreOrientation);
+	//GetWorldTimerManager().SetTimer(TimerHandle_RestoreOrientation, this, &AFPSAIGuard::ResetOrientation, 3.0f);
 
 	SetGuardState(EAIState::Suspicious);
 }
@@ -82,7 +82,7 @@ void AFPSAIGuard::SetGuardState(EAIState NewState)
 	case EAIState::Patrolling:	OnPatrolExit();		break;
 	case EAIState::Alerted:		OnAlertedExit();	break;
 	case EAIState::Idle:
-	case EAIState::Suspicious:
+	case EAIState::Suspicious:	
 	default:
 		break;
 	}
@@ -91,10 +91,10 @@ void AFPSAIGuard::SetGuardState(EAIState NewState)
 
 	switch (GuardState)
 	{
-	case EAIState::Idle:		OnIdleEnter();		break;
-	case EAIState::Patrolling:	OnPatrolEnter();	break;
-	case EAIState::Alerted:		OnAlertedEnter();	break;
-	case EAIState::Suspicious:
+	case EAIState::Idle:		OnIdleEnter();			break;
+	case EAIState::Patrolling:	OnPatrolEnter();		break;
+	case EAIState::Suspicious:	OnSuspiciousEnter();	break;
+	case EAIState::Alerted:		OnAlertedEnter();		break;
 	default:
 		break;
 	}
@@ -141,6 +141,11 @@ void AFPSAIGuard::OnPatrolEnter()
 	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), CurrentTarget);
 }
 
+void AFPSAIGuard::OnSuspiciousEnter()
+{
+	UAIBlueprintHelperLibrary::SimpleMoveToLocation(GetController(), NoiseLocation);
+}
+
 void AFPSAIGuard::OnAlertedEnter()
 {
 	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), FollowingPawn);
@@ -161,8 +166,23 @@ void AFPSAIGuard::PatrolTick(float DeltaTime)
 	}	
 }
 
+void AFPSAIGuard::SuspiciousTick(float DeltaTime)
+{
+	// Check distance to target
+	FVector Delta = GetActorLocation() - NoiseLocation;
+	float Distance = Delta.Size();
+
+	if (Distance < 50)
+	{
+		// Change to idle onced the target has been reached
+		SetGuardState(EAIState::Idle);
+	}
+}
+
 void AFPSAIGuard::AlertedTick(float DeltaTime)
 {
+	if (!FollowingPawn) return;
+
 	// Check distance to target
 	FVector Delta = GetActorLocation() - FollowingPawn->GetActorLocation();
 	float Distance = Delta.Size();
@@ -171,7 +191,7 @@ void AFPSAIGuard::AlertedTick(float DeltaTime)
 	{
 		// Game over
 		AFPSGameMode* GM = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
-		if (GM != nullptr && FollowingPawn != nullptr)
+		if (GM != nullptr)
 			GM->CompleteMission(FollowingPawn, false);
 	}
 	else if (Distance > 2000)
@@ -203,9 +223,14 @@ void AFPSAIGuard::OnAlertedExit()
 void AFPSAIGuard::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
-	if (GuardState == EAIState::Patrolling)
-		PatrolTick(DeltaTime);
-	else if (GuardState == EAIState::Alerted)
-		AlertedTick(DeltaTime);
+		
+	switch (GuardState)
+	{
+	case EAIState::Patrolling:	PatrolTick(DeltaTime);		break;
+	case EAIState::Suspicious:	SuspiciousTick(DeltaTime);	break;
+	case EAIState::Alerted:		AlertedTick(DeltaTime);		break;
+	case EAIState::Idle:		
+	default:
+		break;
+	}
 }

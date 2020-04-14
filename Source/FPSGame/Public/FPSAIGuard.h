@@ -52,11 +52,15 @@ protected:
 	UFUNCTION()
 	void OnPatrolEnter();
 	UFUNCTION()
+	void OnSuspiciousEnter();
+	UFUNCTION()
 	void OnAlertedEnter();
 
 	// State Tick functions
 	UFUNCTION()
 	void PatrolTick(float DeltaTime);
+	UFUNCTION()
+	void SuspiciousTick(float DeltaTime);
 	UFUNCTION()
 	void AlertedTick(float DeltaTime);
 
@@ -87,6 +91,9 @@ protected:
 	ATargetPoint* CurrentTarget = nullptr;
 	int32 CurrentIndex = 0;
 	bool Forward = true;
+
+	// Suspicious variable
+	FVector NoiseLocation;
 
 	// Alerted variables
 	APawn* FollowingPawn = nullptr;
