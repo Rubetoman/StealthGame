@@ -51,13 +51,20 @@ protected:
 	void OnIdleEnter();
 	UFUNCTION()
 	void OnPatrolEnter();
+	UFUNCTION()
+	void OnAlertedEnter();
 
+	// State Tick functions
 	UFUNCTION()
 	void PatrolTick(float DeltaTime);
+	UFUNCTION()
+	void AlertedTick(float DeltaTime);
 
 	// State Exit functions
 	UFUNCTION()
 	void OnPatrolExit();
+	UFUNCTION()
+	void OnAlertedExit();
 
 public:	
 	// Called every frame
@@ -80,4 +87,7 @@ protected:
 	ATargetPoint* CurrentTarget = nullptr;
 	int32 CurrentIndex = 0;
 	bool Forward = true;
+
+	// Alerted variables
+	APawn* FollowingPawn = nullptr;
 };

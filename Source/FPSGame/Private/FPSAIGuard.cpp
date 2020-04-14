@@ -37,10 +37,7 @@ void AFPSAIGuard::OnPawnSeen(APawn* SeenPawn)
 
 	DrawDebugSphere(GetWorld(), SeenPawn->GetActorLocation(), 32.0f, 12, FColor::Red, false, 10.0f);
 
-	AFPSGameMode* GM = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
-
-	//if (GM != nullptr)
-		//GM->CompleteMission(SeenPawn, false);
+	FollowingPawn = SeenPawn;
 
 	SetGuardState(EAIState::Alerted);
 }
@@ -82,10 +79,10 @@ void AFPSAIGuard::SetGuardState(EAIState NewState)
 
 	switch (GuardState)
 	{
-	case EAIState::Patrolling:	OnPatrolExit();	break;
+	case EAIState::Patrolling:	OnPatrolExit();		break;
+	case EAIState::Alerted:		OnAlertedExit();	break;
 	case EAIState::Idle:
 	case EAIState::Suspicious:
-	case EAIState::Alerted:
 	default:
 		break;
 	}
@@ -96,8 +93,8 @@ void AFPSAIGuard::SetGuardState(EAIState NewState)
 	{
 	case EAIState::Idle:		OnIdleEnter();		break;
 	case EAIState::Patrolling:	OnPatrolEnter();	break;
+	case EAIState::Alerted:		OnAlertedEnter();	break;
 	case EAIState::Suspicious:
-	case EAIState::Alerted:
 	default:
 		break;
 	}
@@ -144,6 +141,11 @@ void AFPSAIGuard::OnPatrolEnter()
 	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), CurrentTarget);
 }
 
+void AFPSAIGuard::OnAlertedEnter()
+{
+	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), FollowingPawn);
+}
+
 void AFPSAIGuard::PatrolTick(float DeltaTime)
 {
 	if (!CurrentTarget) return;
@@ -159,10 +161,38 @@ void AFPSAIGuard::PatrolTick(float DeltaTime)
 	}	
 }
 
+void AFPSAIGuard::AlertedTick(float DeltaTime)
+{
+	// Check distance to target
+	FVector Delta = GetActorLocation() - FollowingPawn->GetActorLocation();
+	float Distance = Delta.Size();
+
+	if (Distance < 100)
+	{
+		// Game over
+		AFPSGameMode* GM = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
+		if (GM != nullptr && FollowingPawn != nullptr)
+			GM->CompleteMission(FollowingPawn, false);
+	}
+	else if (Distance > 2000)
+	{
+		// Pawn has escaped, return to patrol
+		SetGuardState(EAIState::Patrolling);
+	}
+}
+
 void AFPSAIGuard::OnPatrolExit()
 {
 	AController* Controller = GetController();
+	if (Controller != nullptr)
+	{
+		Controller->StopMovement();
+	}
+}
 
+void AFPSAIGuard::OnAlertedExit()
+{
+	AController* Controller = GetController();
 	if (Controller != nullptr)
 	{
 		Controller->StopMovement();
@@ -176,4 +206,6 @@ void AFPSAIGuard::Tick(float DeltaTime)
 
 	if (GuardState == EAIState::Patrolling)
 		PatrolTick(DeltaTime);
+	else if (GuardState == EAIState::Alerted)
+		AlertedTick(DeltaTime);
 }
