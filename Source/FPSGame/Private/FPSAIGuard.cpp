@@ -6,6 +6,9 @@
 #include "DrawDebugHelpers.h"
 #include "TimerManager.h"
 #include "FPSGameMode.h"
+#include "Engine/TargetPoint.h"
+#include "Transform.h"
+#include "Blueprint/AIBlueprintHelperLibrary.h"
 
 // Sets default values
 AFPSAIGuard::AFPSAIGuard()
@@ -25,6 +28,7 @@ void AFPSAIGuard::BeginPlay()
 	Super::BeginPlay();
 	
 	OriginalRotation = GetActorRotation();
+	OnIdleEnter();
 }
 
 void AFPSAIGuard::OnPawnSeen(APawn* SeenPawn)
@@ -35,8 +39,8 @@ void AFPSAIGuard::OnPawnSeen(APawn* SeenPawn)
 
 	AFPSGameMode* GM = Cast<AFPSGameMode>(GetWorld()->GetAuthGameMode());
 
-	if (GM != nullptr)
-		GM->CompleteMission(SeenPawn, false);
+	//if (GM != nullptr)
+		//GM->CompleteMission(SeenPawn, false);
 
 	SetGuardState(EAIState::Alerted);
 }
@@ -76,9 +80,93 @@ void AFPSAIGuard::SetGuardState(EAIState NewState)
 {
 	if (GuardState == NewState) return;
 
+	switch (GuardState)
+	{
+	case EAIState::Patrolling:	OnPatrolExit();	break;
+	case EAIState::Idle:
+	case EAIState::Suspicious:
+	case EAIState::Alerted:
+	default:
+		break;
+	}
+
 	GuardState = NewState;
 
+	switch (GuardState)
+	{
+	case EAIState::Idle:		OnIdleEnter();		break;
+	case EAIState::Patrolling:	OnPatrolEnter();	break;
+	case EAIState::Suspicious:
+	case EAIState::Alerted:
+	default:
+		break;
+	}
+
 	OnStateChanged(NewState);
+}
+
+void AFPSAIGuard::OnIdleEnter()
+{
+	// Start patrolling after 3 seconds
+	FTimerHandle TimerHandle_StartPatrolling;
+	FTimerDelegate PatrolDelegate = FTimerDelegate::CreateUObject(this, &AFPSAIGuard::SetGuardState, EAIState::Patrolling);
+	GetWorldTimerManager().SetTimer(TimerHandle_StartPatrolling, PatrolDelegate, 1.0f, false);
+}
+
+void AFPSAIGuard::OnPatrolEnter()
+{
+	// Get next point to walk to
+	if (Forward)
+	{
+		if (CurrentIndex < TargetPoints.Num() - 1)
+		{
+			++CurrentIndex;
+		}
+		else
+		{
+			Forward = !Forward;
+			--CurrentIndex;
+		}
+	}
+	else
+	{
+		if (CurrentIndex > 0)
+		{
+			--CurrentIndex;
+		}
+		else
+		{
+			Forward = !Forward;
+			++CurrentIndex;
+		}
+	}
+	CurrentTarget = TargetPoints[CurrentIndex];
+	UAIBlueprintHelperLibrary::SimpleMoveToActor(GetController(), CurrentTarget);
+}
+
+void AFPSAIGuard::PatrolTick(float DeltaTime)
+{
+	if (!CurrentTarget) return;
+
+	// Check distance to target
+	FVector Delta = GetActorLocation() - CurrentTarget->GetActorLocation();
+	float Distance = Delta.Size();
+
+	if (Distance < 50)
+	{
+		// Change to idle onced the target has been reached
+		SetGuardState(EAIState::Idle);
+	}	
+}
+
+void AFPSAIGuard::OnPatrolExit()
+{
+	AController* Controller = GetController();
+
+	if (Controller != nullptr)
+	{
+		Controller->StopMovement();
+	}
 }
 
 // Called every frame
@@ -86,4 +174,6 @@ void AFPSAIGuard::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
+	if (GuardState == EAIState::Patrolling)
+		PatrolTick(DeltaTime);
 }

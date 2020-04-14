@@ -6,12 +6,14 @@
 #include "GameFramework/Character.h"
 #include "FPSAIGuard.generated.h"
 
+class ATargetPoint;
 class UPawnSensingComponent;
 
 UENUM(BluePrintType)
 enum class EAIState : uint8
 {
 	Idle,
+	Patrolling,
 	Suspicious,
 	Alerted
 };
@@ -44,6 +46,19 @@ protected:
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI")
 	void OnStateChanged(EAIState NewState);
 
+	// State Enter functions
+	UFUNCTION()
+	void OnIdleEnter();
+	UFUNCTION()
+	void OnPatrolEnter();
+
+	UFUNCTION()
+	void PatrolTick(float DeltaTime);
+
+	// State Exit functions
+	UFUNCTION()
+	void OnPatrolExit();
+
 public:	
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -55,5 +70,14 @@ protected:
 	FRotator OriginalRotation;
 	FTimerHandle TimerHandle_RestoreOrientation;
 
+	UPROPERTY(EditInstanceOnly, Category = "AI")
 	EAIState GuardState = EAIState::Idle;
+
+	UPROPERTY(EditInstanceOnly, Category = "AI")
+	TArray<ATargetPoint*> TargetPoints;
+
+	// Patrol variables
+	ATargetPoint* CurrentTarget = nullptr;
+	int32 CurrentIndex = 0;
+	bool Forward = true;
 };
