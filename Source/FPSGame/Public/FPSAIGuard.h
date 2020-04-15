@@ -43,6 +43,9 @@ protected:
 
 	void SetGuardState(EAIState NewState);
 
+	UFUNCTION()
+	void OnRep_GuardState();
+
 	UFUNCTION(BlueprintImplementableEvent, Category = "AI")
 	void OnStateChanged(EAIState NewState);
 
@@ -81,8 +84,9 @@ protected:
 	FRotator OriginalRotation;
 	FTimerHandle TimerHandle_RestoreOrientation;
 
-	UPROPERTY(EditInstanceOnly, Category = "AI")
+	UPROPERTY(ReplicatedUsing=OnRep_GuardState)
 	EAIState GuardState = EAIState::Idle;
+
 
 	UPROPERTY(EditInstanceOnly, Category = "AI")
 	TArray<ATargetPoint*> TargetPoints;
