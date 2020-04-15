@@ -57,10 +57,6 @@ void AFPSAIGuard::OnNoiseHeard(APawn* NoiseInstigator, const FVector& Location, 
 
 	NoiseLocation = Location;
 
-	// Reset rotation after 3 seconds
-	//GetWorldTimerManager().ClearTimer(TimerHandle_RestoreOrientation);
-	//GetWorldTimerManager().SetTimer(TimerHandle_RestoreOrientation, this, &AFPSAIGuard::ResetOrientation, 3.0f);
-
 	SetGuardState(EAIState::Suspicious);
 }
 
@@ -111,6 +107,13 @@ void AFPSAIGuard::OnIdleEnter()
 
 void AFPSAIGuard::OnPatrolEnter()
 {
+	if (TargetPoints.Num() == 0)
+	{
+		// No points to patrol, stay on idle
+		SetGuardState(EAIState::Idle);
+		return;
+	}
+
 	// Get next point to walk to
 	if (Forward)
 	{
